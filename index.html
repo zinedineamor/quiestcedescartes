@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Qui est-ce? (1 mensonge autorisé)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; padding:20px; background:#f5f5f5 }
+    .container { max-width:1200px; margin:0 auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1) }
+    h1 { text-align:center; color:#2c3e50 }
+    .stats-container { margin-top:20px; padding:15px; background:#e8f4f8; border-radius:5px }
+    .game-board { display:flex; flex-wrap:wrap; gap:15px; margin-top:20px; justify-content:center }
+    .character {
+      width:120px;
+      border:2px solid #3498db;
+      border-radius:5px;
+      overflow:hidden;
+      position:relative;
+      transition:all .3s ease;
+      text-align:center;
+    }
+    .character.low-score { opacity:.3; border-color:#e74c3c }
+    .character img { width:100%; height:auto; display:block }
+    .character-name {
+      position:absolute; bottom:0; left:0; right:0;
+      background:rgba(0,0,0,.7); color:#fff;
+      padding:5px 0; font-size:12px;
+    }
+    .controls { margin-top:30px; padding:20px; background:#ecf0f1; border-radius:10px }
+    .question-container { margin-bottom:20px }
+    .question { font-weight:bold; margin-bottom:10px }
+    .btn { padding:8px 15px; margin:5px; cursor:pointer; border:none; border-radius:5px; font-weight:bold }
+    .btn-yes { background:#2ecc71; color:#fff }
+    .btn-no { background:#e74c3c; color:#fff }
+    .history-item { padding:5px; border-bottom:1px solid #eee }
+    .questions-history { margin-top:20px; padding:10px; background:#f9f9f9; border-radius:5px; max-height:150px; overflow-y:auto }
+    .result-container { margin-top:20px; text-align:center; padding:15px; border-radius:5px; display:none }
+    .restart-btn { display:block; margin:20px auto; padding:10px 20px; background:#3498db; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Qui est-ce? (1 mensonge autorisé)</h1>
+    <div class="stats-container">
+      <p>Personnages : <strong>17</strong> — Questions : <strong>13</strong></p>
+      <p>Tu peux mentir à une question, je trouverai quand même ton personnage.</p>
+    </div>
+
+    <div class="game-board" id="gameBoard"></div>
+
+    <div class="controls">
+      <div class="question-container">
+        <div class="question" id="currentQuestion"></div>
+        <button class="btn btn-yes" id="btnYes">Oui</button>
+        <button class="btn btn-no" id="btnNo">Non</button>
+      </div>
+      <div class="questions-history" id="questionsHistory"><h3>Historique des questions :</h3></div>
+    </div>
+
+    <div class="result-container" id="resultContainer">
+      <h2 id="resultText"></h2>
+      <button class="restart-btn" id="restartBtn">Rejouer</button>
+    </div>
+  </div>
+
+  <script>
+    // Liste complète avec les nouvelles propriétés casque et fond
+    const characters = [
+      { id:1,  name:"Amine",    image:"dessin/amine.png",    lunettes:false, moustache:false, chapeau:false, femme:false, homme:true,  barbe:false,  cheveuxLong:true,  cheveuxClair:false, boucleOreille:false, casque:true,  fondJaune:true,  fondBleu:false, fondRouge:false },
+      { id:2,  name:"Aon",      image:"dessin/aon.png",      lunettes:false, moustache:true,  chapeau:true,  femme:false, homme:true,  barbe:true,   cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:3,  name:"Asaad",    image:"dessin/asaad.png",    lunettes:false, moustache:false, chapeau:true,  femme:false, homme:true,  barbe:false,  cheveuxLong:true,  cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:4,  name:"David",    image:"dessin/david.png",    lunettes:false, moustache:true,  chapeau:true,  femme:false, homme:true,  barbe:true,   cheveuxLong:false, cheveuxClair:true,  boucleOreille:false, casque:true,  fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:5,  name:"Yacoub",   image:"dessin/yacoub.png",   lunettes:true,  moustache:false, chapeau:false, femme:false, homme:true,  barbe:false,  cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:true,  fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:6,  name:"Enzo",     image:"dessin/enzo.png",     lunettes:false, moustache:true,  chapeau:false, femme:false, homme:true,  barbe:true,   cheveuxLong:true,  cheveuxClair:false, boucleOreille:false, casque:true,  fondJaune:true,  fondBleu:false, fondRouge:false },
+      { id:7,  name:"Housny",   image:"dessin/housny.png",   lunettes:false, moustache:false, chapeau:false, femme:false, homme:true,  barbe:false,  cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:8,  name:"Islem",    image:"dessin/islem.png",    lunettes:true,  moustache:true,  chapeau:false, femme:false, homme:true,  barbe:false,  cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:false, fondRouge:true },
+      { id:9,  name:"Julien",   image:"dessin/julien.png",   lunettes:false, moustache:false, chapeau:true,  femme:false, homme:true,  barbe:false,  cheveuxLong:false, cheveuxClair:true,  boucleOreille:false, casque:false, fondJaune:true,  fondBleu:false, fondRouge:false },
+      { id:10, name:"Lenny",    image:"dessin/lenny.png",    lunettes:true,  moustache:true,  chapeau:true,  femme:false, homme:true,  barbe:true,   cheveuxLong:false, cheveuxClair:true,  boucleOreille:false, casque:false, fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:11, name:"Lyana",    image:"dessin/lyana.png",    lunettes:true,  moustache:false, chapeau:false, femme:true,  homme:false, barbe:false,  cheveuxLong:true,  cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:false, fondRouge:true },
+      { id:12, name:"Maelys",   image:"dessin/maelys.png",   lunettes:false, moustache:false, chapeau:true,  femme:true,  homme:false, barbe:false,  cheveuxLong:true,  cheveuxClair:true,  boucleOreille:true,  casque:false, fondJaune:true,  fondBleu:false, fondRouge:false },
+      { id:13, name:"Nasredin", image:"dessin/nasredin.png", lunettes:false, moustache:false, chapeau:false, femme:false, homme:true,  barbe:true,   cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:true,  fondRouge:false },
+      { id:14, name:"Sofiane",  image:"dessin/sofiane.png",  lunettes:false, moustache:true,  chapeau:false, femme:false, homme:true,  barbe:true,   cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:true,  fondJaune:true,  fondBleu:false, fondRouge:false },
+      { id:15, name:"Rayane",   image:"dessin/rayane.png",   lunettes:false, moustache:true,  chapeau:true,  femme:false, homme:true,  barbe:false,  cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:false, fondRouge:true },
+      { id:16, name:"Ousmane",  image:"dessin/ousmane.png",  lunettes:true,  moustache:false, chapeau:true,  femme:false, homme:true,  barbe:true,   cheveuxLong:false, cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:false, fondBleu:false, fondRouge:true },
+      { id:17, name:"Mana",     image:"dessin/mana.png",     lunettes:false, moustache:false, chapeau:false, femme:true,  homme:false, barbe:false,  cheveuxLong:true,  cheveuxClair:false, boucleOreille:false, casque:false, fondJaune:true,  fondBleu:false, fondRouge:false }
+    ];
+
+    // Les 13 questions à poser
+    const questions = [
+      { key:"lunettes",      text:"Porte-t-il des lunettes ?" },
+      { key:"moustache",     text:"A-t-il une moustache ?" },
+      { key:"chapeau",       text:"Porte-t-il un chapeau ?" },
+      { key:"femme",         text:"Est-ce une femme ?" },
+      { key:"homme",         text:"Est-ce un homme ?" },
+      { key:"barbe",         text:"A-t-il une barbe ?" },
+      { key:"cheveuxLong",   text:"A-t-il les cheveux longs ?" },
+      { key:"cheveuxClair",  text:"Ses cheveux sont-ils clairs ?" },
+      { key:"boucleOreille", text:"Porte-t-il une boucle d'oreille ?" },
+      { key:"casque",        text:"Porte-t-il un casque audio ?" },
+      { key:"fondJaune",     text:"Le fond est-il jaune ?" },
+      { key:"fondBleu",      text:"Le fond est-il bleu ?" },
+      { key:"fondRouge",     text:"Le fond est-il rouge ?" }
+    ];
+
+    let currentQuestion = 0;
+    const scores = {};
+    characters.forEach(c => scores[c.id] = 0);
+
+    const gb = document.getElementById("gameBoard"),
+          cq = document.getElementById("currentQuestion"),
+          hy = document.getElementById("questionsHistory"),
+          rc = document.getElementById("resultContainer"),
+          rt = document.getElementById("resultText");
+
+    function renderBoard() {
+      gb.innerHTML = "";
+      const maxScore = Math.max(...Object.values(scores));
+      characters.forEach(c => {
+        const div = document.createElement("div");
+        div.className = "character" + (scores[c.id] < maxScore - 1 ? " low-score" : "");
+        // appliquer le fond
+        if (c.fondJaune) div.style.backgroundColor = "yellow";
+        else if (c.fondBleu) div.style.backgroundColor = "blue";
+        else if (c.fondRouge) div.style.backgroundColor = "red";
+        div.innerHTML = `
+          <img src="${c.image}" alt="${c.name}" />
+          <div class="character-name">${c.name} (${scores[c.id]})</div>
+        `;
+        gb.appendChild(div);
+      });
+    }
+
+    function ask() {
+      if (currentQuestion >= questions.length) return finish();
+      cq.textContent = questions[currentQuestion].text;
+    }
+
+    function record(ans) {
+      const q = questions[currentQuestion];
+      characters.forEach(c => {
+        if (c[q.key] === ans) scores[c.id]++;
+      });
+      const d = document.createElement("div");
+      d.className = "history-item";
+      d.textContent = `${q.text} → ${ans?"Oui":"Non"}`;
+      hy.appendChild(d);
+
+      currentQuestion++;
+      renderBoard();
+      if (currentQuestion < questions.length) ask();
+      else finish();
+    }
+
+    function finish() {
+      const maxScore = Math.max(...Object.values(scores));
+      const best = characters.filter(c => scores[c.id] === maxScore).map(c => c.name);
+      rt.innerHTML = `Je pense que c'est : <strong>${best.join(", ")}</strong> (${maxScore}/${questions.length})`;
+      rc.style.display = "block";
+      cq.style.display = "none";
+      document.getElementById("btnYes").style.display = "none";
+      document.getElementById("btnNo").style.display = "none";
+      renderBoard();
+    }
+
+    document.getElementById("btnYes").onclick = () => record(true);
+    document.getElementById("btnNo").onclick  = () => record(false);
+    document.getElementById("restartBtn").onclick = () => location.reload();
+
+    // Démarrage
+    renderBoard();
+    ask();
+  </script>
+</body>
+</html>
